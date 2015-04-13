@@ -44,8 +44,12 @@ def parse_habrahabr_page(text):
  
     if page_title is not None and page_title.endswith(u'Доступ к странице ограничен'):
         return
-    
+
     post_sel = page_sel.css('.post')
+
+    post_id_tag = post_sel.xpath('@id').extract_first()
+    post_id = int(post_id_tag.split('_', 1)[1])
+
     title = post_sel.css('h1.title span.post_title ::text').extract_first()
     published = post_sel.css('div.published ::text').extract_first()
 
@@ -124,6 +128,7 @@ def parse_habrahabr_page(text):
     comments = extract_comments(comments_sel)
     
     post = {
+        '_id': post_id,
         '_last_update': datetime_to_iso(datetime.datetime.now()),
         'title': title, 
         'published': published,
@@ -144,10 +149,10 @@ def parse_habrahabr_page(text):
 
 def download_habr_page(page_index):
     name = str(page_index)
-    if (os.path.exists('habr_pages/%s' % name) 
-        or os.path.exists('habr_pages/._404_%s' % name) 
-        or os.path.exists('habr_pages/._forbid_%s' % name)):
-        #or os.path.exists('habr_pages/._exception_%s' % name)):
+    if (os.path.exists('habr_posts/%s' % name)
+        or os.path.exists('habr_posts/._404_%s' % name)
+        or os.path.exists('habr_posts/._forbid_%s' % name)):
+        #or os.path.exists('habr_posts/._exception_%s' % name)):
         return
 
     url = 'http://habrahabr.ru/post/%s/' % name
@@ -159,22 +164,22 @@ def download_habr_page(page_index):
     print '   status:', resp.status_code
     if resp.status_code == 404:
         # not found
-        with open('habr_pages/._404_%s' % name, 'w') as f:
+        with open('habr_posts/._404_%s' % name, 'w') as f:
             pass
     elif resp.status_code == 200:
         try:
             page_record = parse_habrahabr_page(resp.text)
             if page_record is None:
-                with open('habr_pages/._forbid_%s' % name, 'w') as f:
+                with open('habr_posts/._forbid_%s' % name, 'w') as f:
                     pass
             else:
                 print '   title:', page_record['title']
-                with open('habr_pages/%s' % name, 'w') as f:
+                with open('habr_posts/%s' % name, 'w') as f:
                     json.dump(page_record, f)
         except KeyboardInterrupt as e:
             raise e
         except Exception as e:
-            exception_filename = 'habr_pages/._exception_%s' % name
+            exception_filename = 'habr_posts/._exception_%s' % name
             with open(exception_filename, 'w') as f:
                 f.write(traceback.format_exc())
             print '   can\'t parse, exception %s, see %s' % (e.__class__.__name__, exception_filename)
@@ -195,8 +200,8 @@ if __name__ == '__main__':
 
     indices = range(args.start_index, args.finish_index)
 
-    if not os.path.exists('habr_pages'):
-        os.mkdir('habr_pages')
+    if not os.path.exists('habr_posts'):
+        os.mkdir('habr_posts')
 
     if args.processes == 1:    
         for page_index in indices:
