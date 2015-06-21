@@ -42,15 +42,15 @@ class TMSpider(scrapy.Spider):
     feed_pages = ['/interesting/', '/all/', '/top/']
 
     def __init__(self, post_ids=None, *args, **kwargs):
-        super(HabrahabrSpider, self).__init__(*args, **kwargs)
+        super(TMSpider, self).__init__(*args, **kwargs)
 
         if post_ids is not None:
             if isinstance(post_ids, str):
                 post_ids = eval(post_ids)
-            self.post_ids = post_ids
+        self.post_ids = post_ids
 
     def start_requests(self):
-        yield Request('http://tmfeed.ru/', self.parse_tmfeed)
+        yield scrapy.Request('http://tmfeed.ru/', self.parse_tmfeed)
 
         for site in self.tm_sites:
             for page in self.feed_pages:
@@ -62,15 +62,12 @@ class TMSpider(scrapy.Spider):
                 yield scrapy.Request('http://habrahabr.ru/post/%d/' % post_id, self.parse_post)
 
     def parse_post(self, response):
-        for user_url in commenter_urls:
-            yield Request(user_url, self.parse_user)
-
         last_update = datetime.datetime.now()
         page_title = response.xpath('//html/head/title/text()').extract_first()
 
         post_sel = response.css('.post')
 
-        post_id = post_sel.css('::attr(id)')
+        post_id = post_sel.css('::attr(id)').extract_first()
         if post_id.startswith('post_'):
             post_id = post_id[len('post_'):]
         else:
@@ -93,7 +90,7 @@ class TMSpider(scrapy.Spider):
             hub_name = hub_sel.xpath('text()').extract_first()
             hub_url = hub_sel.xpath('@href').extract_first()
             hubs.append((hub_name, hub_url))
-            yield Response(hub_url, self.parse_feed)
+            yield scrapy.Request(hub_url, self.parse_feed)
 
         content_html = post_sel.css('div.content').extract_first()
         tags = post_sel.css('ul.tags li a ::text').extract()
@@ -107,8 +104,6 @@ class TMSpider(scrapy.Spider):
         author_name = author_sel.css('a ::text').extract_first()
         author_url = author_sel.css('a ::attr(href)').extract_first()
         author_rating = float(author_sel.css('span.rating ::text').extract_first().replace(u'\u2013', '-').replace(',', '.'))
-
-        yield Request(author_url, self.parse_user)
 
         comments_sel = response.css('#comments')
         comments_count = comments_sel.css('h2.title span#comments_count ::text').extract_first()
@@ -156,6 +151,10 @@ class TMSpider(scrapy.Spider):
 
         comments, commenter_urls = extract_comments(comments_sel)
 
+        yield scrapy.Request(author_url, self.parse_user)
+        for user_url in commenter_urls:
+            yield scrapy.Request(user_url, self.parse_user)
+
         yield {
             '_type': 'post',
             '_id': post_id,
@@ -179,6 +178,7 @@ class TMSpider(scrapy.Spider):
 
 
     def parse_user(self, response):
+        return
         if 0:
             yield {
                 '_type': 'user',
@@ -192,39 +192,43 @@ class TMSpider(scrapy.Spider):
         feed_post_urls = response.css('div.posts div.post h1.title a.post_title ::attr(href)').extract()
         for post_url in feed_post_urls:
             post_url = urlparse.urljoin(response.url, post_url)
-            yield Request(post_url, self.parse_post)
+            yield scrapy.Request(post_url, self.parse_post)
 
         nav_urls = response.css('div.page-nav ul#nav-pages li a ::attr(href)').extract()
         for page_url in nav_urls:
             page_url = urlparse.urljoin(response.url, page_url)
-            yield Request(page_url, self.parse_feed)
+            yield scrapy.Request(page_url, self.parse_feed)
 
         for entry in self.parse_page_links(response):
             yield entry
 
     def parse_user_rating(self, response):
+        return
         sel_users = response.css('div#peoples div.user div.info div.userlogin div.username')
         for sel_user in sel_users:
             user_name = sel_user.css('::text').extract_first()
             user_url = sel_user.css('::attr(href)').extract_first()
             user_url = urlparse.urljoin(response.url, user_url)
-            yield Request(user_url, self.parse_user)
+            yield scrapy.Request(user_url, self.parse_user)
 
         nav_urls = response.css('div.page-nav ul#nav-pages li a ::attr(href)').extract()
         for page_url in nav_urls:
             page_url = urlparse.urljoin(response.url, page_url)
-            yield Request(page_url, self.parse_user_rating)
+            yield scrapy.Request(page_url, self.parse_user_rating)
 
     def parse_page_links(self, response):
         block_post_urls = response.css('div.post_item a.post_name ::attr(href)').extract()
         for post_url in block_post_urls:
             post_url = urlparse.urljoin(response.url, post_url)
-            yield Request(post_url, self.parse_post)
+            yield scrapy.Request(post_url, self.parse_post)
 
         block_hub_urls = response.css('ul.categories li a ::attr(href)').extract()
         for hub_url in block_hub_urls:
             hub_url = urlparse.urljoin(response.url, hub_url)
-            yield Request(hub_url, self.parse_feed)
+            yield scrapy.Request(hub_url, self.parse_feed)
+
+    def parse_tmfeed(self, response):
+        return
 
 
 
