@@ -51,12 +51,6 @@ Columns:
  - hubs_count
  - hubs
 
-## Exploration of the dataset
-
-Some experiments and visualizations.
-
-To be done...
-
 ## How to create dataset
 
 Use script `download_all_habr.py` to fetch and parse all the pages available now. Habrahabr posts are
@@ -69,6 +63,3 @@ $ python download_all_habr.py --start-index 1 --finish-index 300000
 
 Script will create the directory `habr_pages` and download post contents there.
 
-## Distributed downloading of the content with AWS
-
-To be done...
